@@ -48,7 +48,7 @@ class NewsActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this, viewModelProviderFactory).get(NewsViewModel::class.java)
 
         setContent {
-            // Basit bir Material Theme sarmalayıcısı (varsa kendi Theme'ini kullanabilirsin)
+            // Basit bir Material Theme sarmalayıcısı
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
