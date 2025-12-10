@@ -2,9 +2,8 @@ package com.eroglu.newsapp.data.api
 
 import com.eroglu.newsapp.data.model.NewsResponse
 import com.eroglu.newsapp.util.Constants.API_KEY
-import retrofit2.Response
-import retrofit2.http.GET
-import retrofit2.http.Query
+import de.jensklingenberg.ktorfit.http.GET
+import de.jensklingenberg.ktorfit.http.Query
 
 interface NewsAPI {
 
@@ -16,7 +15,9 @@ interface NewsAPI {
         pageNumber: Int = 1,
         @Query("apiKey")
         apiKey: String = API_KEY
-    ): Response<NewsResponse>
+    ): NewsResponse
+    // DİKKAT: Retrofit'teki 'Response<NewsResponse>' yerine direkt 'NewsResponse' dönebiliriz
+    // veya HttpResponse dönebiliriz. Şimdilik direkt nesneyi alalım, hata yönetimini try-catch ile yaparız.
 
     @GET("v2/everything")
     suspend fun searchForNews(
@@ -26,5 +27,5 @@ interface NewsAPI {
         pageNumber: Int = 1,
         @Query("apiKey")
         apiKey: String = API_KEY
-    ): Response<NewsResponse>
+    ): NewsResponse
 }

@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias {libs.plugins.ksp}
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("de.jensklingenberg.ktorfit")
 }
 
 android {
@@ -102,4 +104,17 @@ dependencies {
     // Coil for Compose
     implementation("io.coil-kt:coil-compose:2.4.0")
 
+    // 1. Ktor Client
+    implementation("io.ktor:ktor-client-core:2.3.7")
+    implementation("io.ktor:ktor-client-okhttp:2.3.7") // Android için OkHttp motorunu kullanır
+    implementation("io.ktor:ktor-client-logging:2.3.7")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
+
+    // 2. Ktorfit
+    implementation("de.jensklingenberg.ktorfit:ktorfit-lib:1.11.1")
+    ksp("de.jensklingenberg.ktorfit:ktorfit-ksp:1.11.1")
+
+    // 3. Kotlinx Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 }

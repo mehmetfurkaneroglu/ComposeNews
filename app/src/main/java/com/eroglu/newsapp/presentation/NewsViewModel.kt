@@ -29,13 +29,16 @@ class NewsViewModel(
     fun getBreakingNews(countryCode: String) = viewModelScope.launch {
         breakingNews.value = Resource.Loading()
         try {
+            // Direkt veriyi alıyoruz
             val response = newsRepository.getBreakingNews(countryCode, breakingNewsPage)
-            breakingNews.value = handleBreakingNewsResponse(response)
+
+            // Response geldiğine göre başarılıdır
+            breakingNews.value = Resource.Success(response)
+
         } catch (e: Exception) {
-            // Hatayı Logcat'e yazdırıyoruz
-            Log.e("NewsViewModel", "HATA OLUŞTU: ${e.message}")
+            // HTTP hataları veya internet yoksa buraya düşer
+            breakingNews.value = Resource.Error("Hata: ${e.message}")
             e.printStackTrace()
-            breakingNews.value = Resource.Error("Bir hata oluştu: ${e.message}")
         }
     }
 
@@ -43,28 +46,10 @@ class NewsViewModel(
         searchNews.value = Resource.Loading()
         try {
             val response = newsRepository.searchNews(searchQuery, searchNewsPage)
-            searchNews.value = handleSearchNewsResponse(response)
+            searchNews.value = Resource.Success(response)
         } catch (e: Exception) {
             searchNews.value = Resource.Error("Bir hata oluştu: ${e.message}")
+            e.printStackTrace()
         }
-    }
-
-    // API Cevabını İşleyen Yardımcı Fonksiyon
-    private fun handleBreakingNewsResponse(response: Response<NewsResponse>): Resource<NewsResponse> {
-        if (response.isSuccessful) {
-            response.body()?.let { resultResponse ->
-                return Resource.Success(resultResponse)
-            }
-        }
-        return Resource.Error(response.message())
-    }
-
-    private fun handleSearchNewsResponse(response: Response<NewsResponse>): Resource<NewsResponse> {
-        if (response.isSuccessful) {
-            response.body()?.let { resultResponse ->
-                return Resource.Success(resultResponse)
-            }
-        }
-        return Resource.Error(response.message())
     }
 }
