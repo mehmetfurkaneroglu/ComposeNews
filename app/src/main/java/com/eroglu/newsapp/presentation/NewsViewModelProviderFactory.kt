@@ -2,7 +2,7 @@ package com.eroglu.newsapp.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.eroglu.newsapp.data.repository.NewsRepository
+import com.eroglu.newsapp.domain.repository.NewsRepository
 
 class NewsViewModelProviderFactory(
     val newsRepository: NewsRepository

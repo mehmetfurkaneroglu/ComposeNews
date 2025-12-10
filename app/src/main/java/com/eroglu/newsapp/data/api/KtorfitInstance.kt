@@ -12,6 +12,15 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
+/**
+ * Singleton Nedir?
+ * Normalde bir sınıftan new (veya Kotlin'de direkt constructor çağrısı) ile her seferinde yeni bir kopya oluşturabilirsin.
+ * Ancak Singleton deseninde, o sınıftan sadece bir tane üretilir ve uygulamanın her yerinden aynı nesneye erişilir.
+ * Kotlin'de object anahtar kelimesini kullandığında, dil otomatik olarak o sınıfı Singleton yapar.
+ * Yani sen istemesen de KtorfitInstance'tan ikinci bir tane oluşturamazsın.
+ * Singleton kullanılmasının temel sebebi Performans ve Kaynak Yönetimidir.
+ * Özetle; Singleton, "Bu nesne çok yer kaplıyor veya ayarları karmaşık, bir tane üretelim ve herkes o ortak nesneyi kullansın" demek için kullanılır.
+ */
 object KtorfitInstance {
 
     // 1. Ktor HttpClient (Retrofit'teki OkHttp client gibi)

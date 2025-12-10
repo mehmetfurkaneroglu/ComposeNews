@@ -1,14 +1,12 @@
 package com.eroglu.newsapp.presentation
 
-import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eroglu.newsapp.data.model.NewsResponse
-import com.eroglu.newsapp.data.repository.NewsRepository
+import com.eroglu.newsapp.domain.repository.NewsRepository
 import com.eroglu.newsapp.util.Resource
 import kotlinx.coroutines.launch
-import retrofit2.Response
 
 class NewsViewModel(
     private val newsRepository: NewsRepository

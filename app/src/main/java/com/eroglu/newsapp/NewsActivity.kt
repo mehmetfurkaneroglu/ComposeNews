@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
 import com.eroglu.newsapp.data.model.Article
-import com.eroglu.newsapp.data.repository.NewsRepository
+import com.eroglu.newsapp.domain.repository.NewsRepository
 import com.eroglu.newsapp.presentation.NewsViewModel
 import com.eroglu.newsapp.presentation.NewsViewModelProviderFactory
 import com.eroglu.newsapp.util.Resource

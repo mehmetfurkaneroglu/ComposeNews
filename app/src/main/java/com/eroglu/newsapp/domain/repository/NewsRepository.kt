@@ -1,4 +1,4 @@
-package com.eroglu.newsapp.data.repository
+package com.eroglu.newsapp.domain.repository
 
 import com.eroglu.newsapp.data.api.KtorfitInstance
 import com.eroglu.newsapp.data.model.NewsResponse
