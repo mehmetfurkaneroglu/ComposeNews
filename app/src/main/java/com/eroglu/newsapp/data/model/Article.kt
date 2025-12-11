@@ -23,5 +23,6 @@ data class Article(
     val source: Source? = null,
     val title: String? = null,
     val url: String? = null,
-    val urlToImage: String? = null
+    val urlToImage: String? = null,
+    var isFavorite: Boolean? = false
 )
