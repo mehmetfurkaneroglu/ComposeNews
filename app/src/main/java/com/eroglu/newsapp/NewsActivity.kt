@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +42,8 @@ import com.eroglu.newsapp.domain.repository.NewsRepository
 import com.eroglu.newsapp.presentation.ArticleDetailScreen
 import com.eroglu.newsapp.presentation.NewsViewModel
 import com.eroglu.newsapp.presentation.NewsViewModelProviderFactory
+import com.eroglu.newsapp.presentation.SavedNewsScreen
+import com.eroglu.newsapp.presentation.components.NewsList
 import com.eroglu.newsapp.util.Resource
 import com.eroglu.newsapp.util.Screen
 import java.net.URLEncoder
@@ -75,38 +78,47 @@ class NewsActivity : ComponentActivity() {
                     // 2. NavHost (Harita) Tanımla
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.NewsList.route // Başlangıç ekranı
+                        startDestination = Screen.NewsList.route
                     ) {
 
-                        // --- 1. EKRAN: HABER LİSTESİ ---
+                        // --- 1. EKRAN: LİSTE ---
                         composable(route = Screen.NewsList.route) {
-                            NewsListScreen(
-                                viewModel = viewModel,
-                                onArticleClick = { article ->
-                                    // Tıklanınca ne olacak?
-                                    // URL null değilse Detay sayfasına yönlendir
-                                    article.url?.let { url ->
-                                        // URL'i "Encode" ediyoruz ki navigasyon yolu bozulmasın
-                                        val encodedUrl = URLEncoder.encode(
-                                            url,
-                                            StandardCharsets.UTF_8.toString()
-                                        )
-                                        navController.navigate(Screen.ArticleDetail.route + "/$encodedUrl")
-                                    }
+                            // Basit bir Column içine alalım ki üstte "Favoriler" butonu olsun
+                            Column {
+                                Button(
+                                    onClick = { navController.navigate(Screen.SavedNews.route) },
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp)
+                                ) {
+                                    Text("Kaydedilen Haberleri Gör")
                                 }
-                            )
+
+                                NewsListScreen(
+                                    viewModel = viewModel,
+                                    onArticleClick = { article ->
+                                        // ÖNCE HABERİ VIEWMODEL'A SEÇİLEN OLARAK ATIYORUZ
+                                        viewModel.currentArticle = article
+                                        // Sonra gidiyoruz (Artık URL parametresi geçmeye gerek yok çünkü ViewModel'da var)
+                                        navController.navigate(Screen.ArticleDetail.route)
+                                    }
+                                )
+                            }
                         }
 
-                        // --- 2. EKRAN: DETAY (WebView) ---
-                        composable(
-                            route = Screen.ArticleDetail.route + "/{articleUrl}",
-                            arguments = listOf(
-                                navArgument("articleUrl") { type = NavType.StringType }
+                        // --- 2. EKRAN: DETAY ---
+                        // Artık URL parametresine gerek yok, ViewModel'dan alacak
+                        composable(route = Screen.ArticleDetail.route) {
+                            ArticleDetailScreen(viewModel = viewModel)
+                        }
+
+                        // --- 3. EKRAN: FAVORİLER ---
+                        composable(route = Screen.SavedNews.route) {
+                            SavedNewsScreen(
+                                viewModel = viewModel,
+                                onArticleClick = { article ->
+                                    viewModel.currentArticle = article
+                                    navController.navigate(Screen.ArticleDetail.route)
+                                }
                             )
-                        ) { backStackEntry ->
-                            // Parametreyi al
-                            val url = backStackEntry.arguments?.getString("articleUrl") ?: ""
-                            ArticleDetailScreen(url = url)
                         }
                     }
                 }
@@ -149,73 +161,73 @@ fun NewsListScreen(
     }
 }
 
-@Composable
-fun NewsList(
-    articles: List<Article>,
-    onArticleClick: (Article) -> Unit
-) {
-    LazyColumn(contentPadding = PaddingValues(10.dp)) {
-        items(articles) { article ->
-            ArticleItem(
-                article = article,
-                onArticleClick = onArticleClick
-            )
-        }
-    }
-}
-
-@Composable
-fun ArticleItem(
-    article: Article,
-    onArticleClick: (Article) -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 10.dp)
-            .clickable { onArticleClick(article) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // 1. Resim Alanı (Coil AsyncImage)
-            AsyncImage(
-                model = article.urlToImage, // Resmin URL'i
-                contentDescription = article.title, // Erişilebilirlik için açıklama
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp), // Resme sabit bir yükseklik verelim
-                contentScale = ContentScale.Crop, // Resmi alana yay ve kırp
-                // İsteğe bağlı: Yüklenirken veya hata durumunda gösterilecekler
-                // placeholder = painterResource(R.drawable.ic_loading),
-                // error = painterResource(R.drawable.ic_error)
-            )
-
-            Column(modifier = Modifier.padding(15.dp)) {
-                // 2. Başlık
-                Text(
-                    text = article.title ?: "Başlık Yok",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-                Spacer(modifier = Modifier.height(5.dp))
-                // 3. Açıklama
-                Text(
-                    text = article.description ?: "Açıklama Yok",
-                    fontSize = 14.sp,
-                    maxLines = 3
-                )
-                Spacer(modifier = Modifier.height(5.dp))
-                // 4. Kaynak
-                Text(
-                    text = article.source?.name ?: "Bilinmeyen Kaynak",
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.align(Alignment.End)
-                )
-            }
-        }
-    }
-}
+//@Composable
+//fun NewsList(
+//    articles: List<Article>,
+//    onArticleClick: (Article) -> Unit
+//) {
+//    LazyColumn(contentPadding = PaddingValues(10.dp)) {
+//        items(articles) { article ->
+//            ArticleItem(
+//                article = article,
+//                onArticleClick = onArticleClick
+//            )
+//        }
+//    }
+//}
+//
+//@Composable
+//fun ArticleItem(
+//    article: Article,
+//    onArticleClick: (Article) -> Unit
+//) {
+//    Card(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .padding(bottom = 10.dp)
+//            .clickable { onArticleClick(article) },
+//        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+//    ) {
+//        Column(modifier = Modifier.fillMaxWidth()) {
+//            // 1. Resim Alanı (Coil AsyncImage)
+//            AsyncImage(
+//                model = article.urlToImage, // Resmin URL'i
+//                contentDescription = article.title, // Erişilebilirlik için açıklama
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .height(200.dp), // Resme sabit bir yükseklik verelim
+//                contentScale = ContentScale.Crop, // Resmi alana yay ve kırp
+//                // İsteğe bağlı: Yüklenirken veya hata durumunda gösterilecekler
+//                // placeholder = painterResource(R.drawable.ic_loading),
+//                // error = painterResource(R.drawable.ic_error)
+//            )
+//
+//            Column(modifier = Modifier.padding(15.dp)) {
+//                // 2. Başlık
+//                Text(
+//                    text = article.title ?: "Başlık Yok",
+//                    fontWeight = FontWeight.Bold,
+//                    fontSize = 18.sp
+//                )
+//                Spacer(modifier = Modifier.height(5.dp))
+//                // 3. Açıklama
+//                Text(
+//                    text = article.description ?: "Açıklama Yok",
+//                    fontSize = 14.sp,
+//                    maxLines = 3
+//                )
+//                Spacer(modifier = Modifier.height(5.dp))
+//                // 4. Kaynak
+//                Text(
+//                    text = article.source?.name ?: "Bilinmeyen Kaynak",
+//                    fontSize = 12.sp,
+//                    color = Color.Gray,
+//                    modifier = Modifier.align(Alignment.End)
+//                )
+//            }
+//        }
+//    }
+//}
 
 //@Composable
 //@androidx.compose.ui.tooling.preview.Preview(showBackground = true)

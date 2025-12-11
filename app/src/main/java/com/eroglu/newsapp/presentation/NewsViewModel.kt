@@ -7,6 +7,7 @@ import com.eroglu.newsapp.data.model.Article
 import com.eroglu.newsapp.data.model.NewsResponse
 import com.eroglu.newsapp.domain.repository.NewsRepository
 import com.eroglu.newsapp.util.Resource
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 class NewsViewModel(
@@ -33,11 +34,12 @@ class NewsViewModel(
 
             // 2. Gelen her haberi Room veritabanına kaydet (Cache mantığı)
             // Not: response.articles nullable olabilir, kontrol ediyoruz
-            response.articles?.let { articles ->
-                for(article in articles) {
-                    newsRepository.upsert(article)
-                }
-            }
+            // TODO: Tüm haberleri database ekledim fakat kaydedilenler ile çakıştı, ONDAN KAPATTIM
+//            response.articles?.let { articles ->
+//                for(article in articles) {
+//                    newsRepository.upsert(article)
+//                }
+//            }
 
             // 3. UI'a başarılı olduğunu bildir
             breakingNews.value = Resource.Success(response)
@@ -48,9 +50,22 @@ class NewsViewModel(
         }
     }
 
-    // Ayrıca favorilere eklemek için bir fonksiyon yazalım (Kullanıcı butona basınca çağıracak)
+    // 1. Seçilen Haberi Tutacak Değişken (Detay sayfası için)
+    var currentArticle: Article? = null
+
+    // 2. Kaydedilen Haberleri Getiren Flow (Room'dan canlı veri)
+    fun getSavedNews(): Flow<List<Article>> {
+        return newsRepository.getSavedNews()
+    }
+
+    // 3. Haberi Kaydetme Fonksiyonu
     fun saveArticle(article: Article) = viewModelScope.launch {
         newsRepository.upsert(article)
+    }
+
+    // 4. Haberi Silme Fonksiyonu
+    fun deleteArticle(article: Article) = viewModelScope.launch {
+        newsRepository.deleteArticle(article)
     }
 
     fun searchNews(searchQuery: String) = viewModelScope.launch {
