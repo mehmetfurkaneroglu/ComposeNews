@@ -3,6 +3,7 @@ package com.eroglu.newsapp.presentation
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eroglu.newsapp.data.model.Article
 import com.eroglu.newsapp.data.model.NewsResponse
 import com.eroglu.newsapp.domain.repository.NewsRepository
 import com.eroglu.newsapp.util.Resource
@@ -27,23 +28,35 @@ class NewsViewModel(
     fun getBreakingNews(countryCode: String) = viewModelScope.launch {
         breakingNews.value = Resource.Loading()
         try {
-            // Direkt veriyi alıyoruz
-            val response = newsRepository.getBreakingNews(countryCode, breakingNewsPage)
+            // 1. API'den veriyi çek
+            val response = newsRepository.getBreakingNewsFromApi(countryCode, breakingNewsPage)
 
-            // Response geldiğine göre başarılıdır
+            // 2. Gelen her haberi Room veritabanına kaydet (Cache mantığı)
+            // Not: response.articles nullable olabilir, kontrol ediyoruz
+            response.articles?.let { articles ->
+                for(article in articles) {
+                    newsRepository.upsert(article)
+                }
+            }
+
+            // 3. UI'a başarılı olduğunu bildir
             breakingNews.value = Resource.Success(response)
 
         } catch (e: Exception) {
-            // HTTP hataları veya internet yoksa buraya düşer
             breakingNews.value = Resource.Error("Hata: ${e.message}")
             e.printStackTrace()
         }
     }
 
+    // Ayrıca favorilere eklemek için bir fonksiyon yazalım (Kullanıcı butona basınca çağıracak)
+    fun saveArticle(article: Article) = viewModelScope.launch {
+        newsRepository.upsert(article)
+    }
+
     fun searchNews(searchQuery: String) = viewModelScope.launch {
         searchNews.value = Resource.Loading()
         try {
-            val response = newsRepository.searchNews(searchQuery, searchNewsPage)
+            val response = newsRepository.searchNewsFromApi(searchQuery, searchNewsPage)
             searchNews.value = Resource.Success(response)
         } catch (e: Exception) {
             searchNews.value = Resource.Error("Bir hata oluştu: ${e.message}")

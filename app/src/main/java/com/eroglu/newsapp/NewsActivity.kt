@@ -3,6 +3,7 @@ package com.eroglu.newsapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,12 +29,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import coil.compose.AsyncImage
+import com.eroglu.newsapp.data.database.ArticleDatabase
 import com.eroglu.newsapp.data.model.Article
 import com.eroglu.newsapp.domain.repository.NewsRepository
+import com.eroglu.newsapp.presentation.ArticleDetailScreen
 import com.eroglu.newsapp.presentation.NewsViewModel
 import com.eroglu.newsapp.presentation.NewsViewModelProviderFactory
 import com.eroglu.newsapp.util.Resource
+import com.eroglu.newsapp.util.Screen
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 class NewsActivity : ComponentActivity() {
 
@@ -42,20 +53,62 @@ class NewsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Repository ve ViewModel Kurulumu
-        val newsRepository = NewsRepository()
+        // 1. Veritabanını oluştur
+        val database = ArticleDatabase(this)
+
+        // 2. Repository'ye veritabanını ver
+        val newsRepository = NewsRepository(database)
+
         val viewModelProviderFactory = NewsViewModelProviderFactory(newsRepository)
         viewModel = ViewModelProvider(this, viewModelProviderFactory).get(NewsViewModel::class.java)
 
         setContent {
-            // Basit bir Material Theme sarmalayıcısı
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Ana Ekran Fonksiyonunu çağırıyoruz
-                    NewsListScreen(viewModel = viewModel)
+
+                    // 1. Controller'ı oluştur
+                    val navController = rememberNavController()
+
+                    // 2. NavHost (Harita) Tanımla
+                    NavHost(
+                        navController = navController,
+                        startDestination = Screen.NewsList.route // Başlangıç ekranı
+                    ) {
+
+                        // --- 1. EKRAN: HABER LİSTESİ ---
+                        composable(route = Screen.NewsList.route) {
+                            NewsListScreen(
+                                viewModel = viewModel,
+                                onArticleClick = { article ->
+                                    // Tıklanınca ne olacak?
+                                    // URL null değilse Detay sayfasına yönlendir
+                                    article.url?.let { url ->
+                                        // URL'i "Encode" ediyoruz ki navigasyon yolu bozulmasın
+                                        val encodedUrl = URLEncoder.encode(
+                                            url,
+                                            StandardCharsets.UTF_8.toString()
+                                        )
+                                        navController.navigate(Screen.ArticleDetail.route + "/$encodedUrl")
+                                    }
+                                }
+                            )
+                        }
+
+                        // --- 2. EKRAN: DETAY (WebView) ---
+                        composable(
+                            route = Screen.ArticleDetail.route + "/{articleUrl}",
+                            arguments = listOf(
+                                navArgument("articleUrl") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            // Parametreyi al
+                            val url = backStackEntry.arguments?.getString("articleUrl") ?: ""
+                            ArticleDetailScreen(url = url)
+                        }
+                    }
                 }
             }
         }
@@ -63,7 +116,10 @@ class NewsActivity : ComponentActivity() {
 }
 
 @Composable
-fun NewsListScreen(viewModel: NewsViewModel) {
+fun NewsListScreen(
+    viewModel: NewsViewModel,
+    onArticleClick: (Article) -> Unit // Tıklama fonksiyonu parametre olarak eklendi
+) {
     // ViewModel'daki state'i (durumu) dinliyoruz
     val result = viewModel.breakingNews.value
 
@@ -77,7 +133,8 @@ fun NewsListScreen(viewModel: NewsViewModel) {
             is Resource.Success -> {
                 // Başarılı! Listeyi göster
                 val articles = result.data?.articles ?: emptyList()
-                NewsList(articles = articles)
+                // Listeye tıklama özelliğini gönderiyoruz
+                NewsList(articles = articles, onArticleClick = onArticleClick)
             }
 
             is Resource.Error -> {
@@ -93,22 +150,30 @@ fun NewsListScreen(viewModel: NewsViewModel) {
 }
 
 @Composable
-fun NewsList(articles: List<Article>) {
-    LazyColumn(
-        contentPadding = PaddingValues(10.dp)
-    ) {
+fun NewsList(
+    articles: List<Article>,
+    onArticleClick: (Article) -> Unit
+) {
+    LazyColumn(contentPadding = PaddingValues(10.dp)) {
         items(articles) { article ->
-            ArticleItem(article)
+            ArticleItem(
+                article = article,
+                onArticleClick = onArticleClick
+            )
         }
     }
 }
 
 @Composable
-fun ArticleItem(article: Article) {
+fun ArticleItem(
+    article: Article,
+    onArticleClick: (Article) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 10.dp),
+            .padding(bottom = 10.dp)
+            .clickable { onArticleClick(article) },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -152,74 +217,74 @@ fun ArticleItem(article: Article) {
     }
 }
 
-@Composable
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-fun PreviewArticleItem() {
-    val sampleArticle = Article(
-        author = "John Doe",
-        title = "Örnek Haber Başlığı",
-        description = "Bu bir örnek haber açıklamasıdır. Preview için hazırlanmıştır.",
-        url = "",
-        urlToImage = "",
-        publishedAt = "",
-        content = "",
-        source = null
-    )
-
-    MaterialTheme {
-        ArticleItem(article = sampleArticle)
-    }
-}
-
-@Composable
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-fun PreviewNewsList() {
-    val sampleList = listOf(
-        Article(
-            author = "John Doe",
-            title = "Örnek Haber 1",
-            description = "Bu bir açıklamadır.",
-            url = "",
-            urlToImage = "",
-            publishedAt = "",
-            content = "",
-            source = null
-        ),
-        Article(
-            author = "Jane Roe",
-            title = "Örnek Haber 2",
-            description = "Bu ikinci açıklamadır.",
-            url = "",
-            urlToImage = "",
-            publishedAt = "",
-            content = "",
-            source = null
-        )
-    )
-
-    MaterialTheme {
-        NewsList(articles = sampleList)
-    }
-}
-
-@Composable
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-fun PreviewNewsListScreen() {
-    // Fake bir Resource.Success veriyoruz
-    val sampleArticles = listOf(
-        Article(
-            author = "Test",
-            title = "Preview Haber",
-            description = "Preview açıklaması",
-            url = "",
-            urlToImage = "",
-            publishedAt = "",
-            content = "",
-            source = null
-        )
-    )
-
-    MaterialTheme {
-        NewsList(articles = sampleArticles)
-    }
-}
+//@Composable
+//@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+//fun PreviewArticleItem() {
+//    val sampleArticle = Article(
+//        author = "John Doe",
+//        title = "Örnek Haber Başlığı",
+//        description = "Bu bir örnek haber açıklamasıdır. Preview için hazırlanmıştır.",
+//        url = "",
+//        urlToImage = "",
+//        publishedAt = "",
+//        content = "",
+//        source = null
+//    )
+//
+//    MaterialTheme {
+//        ArticleItem(article = sampleArticle)
+//    }
+//}
+//
+//@Composable
+//@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+//fun PreviewNewsList() {
+//    val sampleList = listOf(
+//        Article(
+//            author = "John Doe",
+//            title = "Örnek Haber 1",
+//            description = "Bu bir açıklamadır.",
+//            url = "",
+//            urlToImage = "",
+//            publishedAt = "",
+//            content = "",
+//            source = null
+//        ),
+//        Article(
+//            author = "Jane Roe",
+//            title = "Örnek Haber 2",
+//            description = "Bu ikinci açıklamadır.",
+//            url = "",
+//            urlToImage = "",
+//            publishedAt = "",
+//            content = "",
+//            source = null
+//        )
+//    )
+//
+//    MaterialTheme {
+//        NewsList(articles = sampleList)
+//    }
+//}
+//
+//@Composable
+//@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+//fun PreviewNewsListScreen() {
+//    // Fake bir Resource.Success veriyoruz
+//    val sampleArticles = listOf(
+//        Article(
+//            author = "Test",
+//            title = "Preview Haber",
+//            description = "Preview açıklaması",
+//            url = "",
+//            urlToImage = "",
+//            publishedAt = "",
+//            content = "",
+//            source = null
+//        )
+//    )
+//
+//    MaterialTheme {
+//        NewsList(articles = sampleArticles)
+//    }
+//}
