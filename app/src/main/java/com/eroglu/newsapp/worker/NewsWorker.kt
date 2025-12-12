@@ -12,6 +12,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.eroglu.newsapp.NewsActivity
 import com.eroglu.newsapp.R
+import com.eroglu.newsapp.data.database.ArticleDatabase
+import com.eroglu.newsapp.domain.repository.NewsRepository
 
 class NewsWorker(
     appContext: Context,
@@ -19,38 +21,62 @@ class NewsWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        // ... Önceki API ve Veritabanı kodların burada duruyor ...
+        return try {
+            Log.d("NewsWorker", "Arka plan işçisi çalışıyor...")
 
-        // ÖRNEK SENARYO:
-        // Diyelim ki API'den veriyi çektin ve haber başlığı şu geldi:
-        val haberBasligi = "Son Dakika: Android Geliştiricileri İçin Yeni Güncelleme!"
-        val haberDetayi = "Google yeni yapay zeka araçlarını duyurdu..."
+            // 1. Repository'yi Manuel Oluştur
+            // Senin ArticleDatabase sınıfında invoke metodu olduğunu varsayıyoruz.
+            val database = ArticleDatabase(applicationContext)
+            val repository = NewsRepository(database)
 
-        // Ve sihirli dokunuş: BİLDİRİMİ GÖNDER
-        sendNotification(haberBasligi, haberDetayi)
+            // 2. API İsteği (DİKKAT: Metod ismini düzelttik ve try-catch içine aldık)
+            // Ktorfit/Retrofit direkt nesne döndüğü için, hata olursa Exception fırlatır.
+            val newsResponse = repository.getBreakingNewsFromApi("tr", 1)
 
-        return Result.success()
+            // 3. Veriyi Kontrol Et (isSuccessful veya body() YOK, direkt nesne var)
+            val newsList = newsResponse.articles
+
+            if (!newsList.isNullOrEmpty()) {
+                val latestNews = newsList[0]
+
+                val gercekBaslik = latestNews.title ?: "Yeni Haber"
+                val gercekDetay = latestNews.description ?: "Haber detayı için dokunun."
+
+                // Veritabanına kaydet
+                repository.upsert(latestNews)
+
+                // Bildirim Gönder
+                sendNotification(gercekBaslik, gercekDetay)
+
+                Log.d("NewsWorker", "Başarılı: $gercekBaslik")
+                Result.success()
+            } else {
+                Log.d("NewsWorker", "Haber listesi boş.")
+                Result.success()
+            }
+
+        } catch (e: Exception) {
+            // İnternet yoksa veya API çöktüyse buraya düşer
+            Log.e("NewsWorker", "Hata oluştu: ${e.localizedMessage}")
+            // Hata durumunda işlemi sonra tekrar denemesi için 'retry' diyoruz
+            Result.retry()
+        }
     }
 
-    // --- İŞTE YENİ EKLEYECEĞİMİZ FONKSİYON ---
     private fun sendNotification(title: String, message: String) {
-        val notificationManager =
-            applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "breaking_news_channel"
         val channelName = "Son Dakika Haberleri"
 
-        // 1. Bildirim Kanalı Oluştur (Android 8.0 ve üzeri için ZORUNLU)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
                 channelName,
-                NotificationManager.IMPORTANCE_HIGH // Önemli! Sesli ve titreşimli uyarı için.
+                NotificationManager.IMPORTANCE_HIGH
             )
             notificationManager.createNotificationChannel(channel)
         }
 
-        // 2. Bildirime tıklayınca nereye gidecek? (MainActivity'ye)
-        // Kendi MainActivity ismin neyse onu yaz
         val intent = Intent(applicationContext, NewsActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -59,20 +85,17 @@ class NewsWorker(
             applicationContext,
             0,
             intent,
-            // Android 12+ güvenliği için FLAG_IMMUTABLE şart
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // 3. Bildirimi Tasarla
         val builder = NotificationCompat.Builder(applicationContext, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // PROJENDEKİ BİR İKONU SEÇ (Zorunlu)
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // İkonun varsa değiştir
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent) // Tıklama aksiyonu
-            .setAutoCancel(true) // Tıklayınca bildirim kaybolsun
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
 
-        // 4. Göster! (ID her seferinde farklı olursa bildirimler üst üste birikir, 1 dersen günceller)
         notificationManager.notify(1, builder.build())
     }
 }
